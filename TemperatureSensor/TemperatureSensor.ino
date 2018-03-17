@@ -9,9 +9,9 @@ String DevEui = "60C5A8FFFE000001";
 String AppEui = "70B3D57EF00047C0";
 String AppKey = "5D833B4696D5E01E2F8DC880E30BA5FE";
 #else JOIN_MODE == ABP
-String NwkSKey = "1DD9F788D6F7FEBD56CC46550F174DCD";
-String AppSKey = "FD580689139A6C74A95C2D86B51592AD";
-String DevAddr = "0000B003";
+String NwkSKey = "E90FD75219A233CFC6906A45CCC79452";
+String AppSKey = "6EA2CBA79747DD8C692CDFAB52DDDA8F";
+String DevAddr = "07AAAB31";
 #endif
 #define TXpin 11   // Set the virtual serial port pins
 #define RXpin 10
@@ -98,9 +98,8 @@ void loop() {
 
         String b = to_hex(int(t)) + to_hex(int(h));
         
-        RAKLoRa.rk_sendData(1, 2, b.c_str());
-        DebugSerial.println(RAKLoRa.rk_recvData());
-        // }
+        RAKLoRa.rk_sendData(1, 2, b.c_str());        
+        DebugSerial.println(RAKLoRa.rk_recvData());        
       }
     }
   }

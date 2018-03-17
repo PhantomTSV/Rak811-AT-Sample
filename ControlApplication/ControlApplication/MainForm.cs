@@ -8,11 +8,11 @@ using System.Drawing;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
-
 
 
 namespace WindowsFormsApplication1
@@ -67,64 +67,46 @@ namespace WindowsFormsApplication1
 
         public class MqttSndMsgObject
         {
-            public int led1 { get; set; }
-            public int led2 { get; set; }
+            public int output { get; set; }            
+            public int pwm { get; set; }
         }
 
 
         string MQTT_BROKER_ADDRESS = "127.0.0.1";
-        MqttClient client;
+        MqttClient ledControlClient;
+        MqttClient temometrClient;
         bool led1 = false;
         bool led2 = false;
+        int pwm = 0;
 
-        private void client_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        private void ledControlClient_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
         {
             // handle message received 
 
-            int a = 67, b = 22, c;
-
-
             String str = System.Text.UTF8Encoding.UTF8.GetString(e.Message);
+            var info = JsonConvert.DeserializeObject<MqttMsg>(str);   
 
-            var info = JsonConvert.DeserializeObject<MqttMsg>(str);
-
-            c = a + b;
-
-          //  return;
-
-            //labelTemperature.Text = "Температура: " + info.Object.Temperature.ToString();
-            //labelHumidity.Text = "Температура: " + info.Object.Humidity.ToString();
+         
             if (info.Object != null)
             {
-              //  MqttClient client = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
-
-              ////  string clientId = Guid.NewGuid().ToString();
-              //  client.Connect(clientId);
-
-             //   client.MqttMsgPublished += client_MqttMsgPublished;
-
-                MqttSndMsg msg = new MqttSndMsg();
-
-                msg.reference = "";
-                msg.confirmed = false;
-                msg.fPort = 2;
-                msg.Object = new MqttSndMsgObject();
-                msg.Object.led1 = (led1 ? 1 : 0);
-                msg.Object.led2 = (led2 ? 1 : 0);
-
-
-                string str1 = JsonConvert.SerializeObject(msg);  //"{\"reference\": \"\",\"confirmed\": false,\"fPort\": 2,\"object\":{\"Temperature\":5,\"Humidity\":255}}";
-
-
-               /* ushort msgId = client.Publish("application/1/node/3037343644357422/tx", // topic
-                                  Encoding.UTF8.GetBytes(str1), // message body
-                                  MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, // QoS level
-                                  false); // retained*/
-                
-                SetText(info.Object);
+                sendLeds();
+                Thread.Sleep(1000);
+                sendPwm();       
 
             }
+        }
 
+        private void temometrClient_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        {
+            // handle message received 
+
+            String str = System.Text.UTF8Encoding.UTF8.GetString(e.Message);
+            var info = JsonConvert.DeserializeObject<MqttMsg>(str);
+            
+            if (info.Object != null)
+            {
+                SetText(info.Object);             
+            }
         }
 
         delegate void SetTextCallback(MqttMsgObject obj);
@@ -140,6 +122,9 @@ namespace WindowsFormsApplication1
             {
                 labelTemperature.Text = "Температура: " + obj.Temperature.ToString();
                 labelHumidity.Text = "Влажность: " + obj.Humidity.ToString();
+
+                chart1.Series[0].Points.AddXY( DateTime.Now.Minute,  obj.Temperature);
+
             }
         }
 
@@ -153,33 +138,31 @@ namespace WindowsFormsApplication1
             InitializeComponent();
 
             // create client instance 
-            client = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
+            ledControlClient = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
 
             // register to message received 
-            client.MqttMsgPublishReceived += client_MqttMsgPublishReceived;
+            ledControlClient.MqttMsgPublishReceived += ledControlClient_MqttMsgPublishReceived;
 
             string clientId = Guid.NewGuid().ToString();
-            client.Connect(clientId);
+            ledControlClient.Connect(clientId);
 
-            // subscribe to the topic "/home/temperature" with QoS 2 
-            client.Subscribe(new string[] { "application/1/node/3037343644357422/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+            
+            ledControlClient.Subscribe(new string[] { "application/2/node/60c5a8fffe000001/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });     
 
-         /*   client.MqttMsgPublished += client_MqttMsgPublished;
-
-
-            string str1 = "{\"reference\": \"\",\"confirmed\": false,\"fPort\": 2,\"data\": \"/68=\"}";
-
-
-            ushort msgId = client.Publish("application/1/node/3531323975377613/tx", // topic
-                              Encoding.UTF8.GetBytes(str1), // message body
-                              MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, // QoS level
-                              false); // retained
-
-            */
-            // labelHumidity
+           
+            
+            temometrClient = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
+            temometrClient.MqttMsgPublishReceived += temometrClient_MqttMsgPublishReceived;
+            
+            clientId = Guid.NewGuid().ToString();
+            temometrClient.Connect(clientId);
 
 
+            temometrClient.Subscribe(new string[] { "application/1/node/3531323975377613/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
 
+            
+
+            timer1.Stop();
         }
 
         private void sendLeds()
@@ -188,17 +171,37 @@ namespace WindowsFormsApplication1
 
             msg.reference = "123";
             msg.confirmed = false;
-            msg.devEUI = "3531323975377613";
+            msg.devEUI = "60c5a8fffe000001";
             msg.fPort = 2;
-            msg.Object = new MqttSndMsgObject();
-            msg.Object.led1 = (led1 ? 1 : 0);
-            msg.Object.led2 = (led2 ? 1 : 0);
+            msg.Object = new MqttSndMsgObject();           
+            msg.Object.output = ((led2 ? 1 : 0) << 1) | ((led1 ? 1 : 0) << 0);
+            
 
 
-            string str1 = JsonConvert.SerializeObject(msg);  //"{\"reference\": \"123\",\"confirmed\": false,\"fPort\": 2,\"data\":\"Qzc=\"}";
+            string str1 = JsonConvert.SerializeObject(msg); 
 
 
-            ushort msgId = client.Publish("application/1/node/3531323975377613/tx", // topic
+            ushort msgId = ledControlClient.Publish("application/2/node/60c5a8fffe000001/tx", // topic
+                              Encoding.UTF8.GetBytes(str1), // message body
+                              MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, // QoS level
+                              false); // retained
+        }
+
+        private void sendPwm()
+        {
+            MqttSndMsg msg = new MqttSndMsg();
+
+            msg.reference = "123";
+            msg.confirmed = false;
+            msg.devEUI = "60c5a8fffe000001";
+            msg.fPort = 3;
+            msg.Object = new MqttSndMsgObject();       
+            msg.Object.pwm = pwm;
+
+            string str1 = JsonConvert.SerializeObject(msg);
+
+
+            ushort msgId = ledControlClient.Publish("application/2/node/60c5a8fffe000001/tx", // topic
                               Encoding.UTF8.GetBytes(str1), // message body
                               MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, // QoS level
                               false); // retained
@@ -238,7 +241,28 @@ namespace WindowsFormsApplication1
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            client.Disconnect();
+            if (ledControlClient.IsConnected)
+                ledControlClient.Disconnect();
+
+            if (temometrClient.IsConnected)
+                temometrClient.Disconnect();
+        }
+
+        private void pwm1TrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            pwm1Label.Text = (pwm1TrackBar.Value / 255.0 * 100.0).ToString("N2") + " %";
+            pwm = pwm1TrackBar.Value;
+
+            if (timer1.Enabled)
+                timer1.Stop();
+
+            timer1.Start();
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            timer1.Stop();
+            sendPwm();
         }
     }
 }
