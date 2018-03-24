@@ -61,7 +61,9 @@
             this.label3 = new System.Windows.Forms.Label();
             this.pwm1TrackBar = new System.Windows.Forms.TrackBar();
             this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.timer1 = new System.Windows.Forms.Timer(this.components);
+            this.pwmDelayTimer = new System.Windows.Forms.Timer(this.components);
+            this.termometrClientReconnectTimer = new System.Windows.Forms.Timer(this.components);
+            this.ledControlClientReconnectTimer = new System.Windows.Forms.Timer(this.components);
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabControl2.SuspendLayout();
@@ -373,10 +375,20 @@
             this.tabPage3.Text = "Настройки";
             this.tabPage3.UseVisualStyleBackColor = true;
             // 
-            // timer1
+            // pwmDelayTimer
             // 
-            this.timer1.Interval = 5000;
-            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            this.pwmDelayTimer.Interval = 5000;
+            this.pwmDelayTimer.Tick += new System.EventHandler(this.pwmDelayTimer_Tick);
+            // 
+            // termometrClientReconnectTimer
+            // 
+            this.termometrClientReconnectTimer.Interval = 10000;
+            this.termometrClientReconnectTimer.Tick += new System.EventHandler(this.termometrClientReconnectTimer_Tick);
+            // 
+            // ledControlClientReconnectTimer
+            // 
+            this.ledControlClientReconnectTimer.Interval = 10000;
+            this.ledControlClientReconnectTimer.Tick += new System.EventHandler(this.ledControlClientReconnectTimer_Tick);
             // 
             // MainForm
             // 
@@ -437,7 +449,9 @@
         private System.Windows.Forms.TrackBar pwm1TrackBar;
         private System.Windows.Forms.TabPage tabPage3;
         private System.Windows.Forms.Label pwm1Label;
-        private System.Windows.Forms.Timer timer1;
+        private System.Windows.Forms.Timer pwmDelayTimer;
+        private System.Windows.Forms.Timer termometrClientReconnectTimer;
+        private System.Windows.Forms.Timer ledControlClientReconnectTimer;
     }
 }
 

@@ -14,7 +14,6 @@ using System.Windows.Forms;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
 
-
 namespace WindowsFormsApplication1
 {
     public partial class MainForm : Form
@@ -74,7 +73,7 @@ namespace WindowsFormsApplication1
 
         string MQTT_BROKER_ADDRESS = "127.0.0.1";
         MqttClient ledControlClient;
-        MqttClient temometrClient;
+        MqttClient termometrClient;
         bool led1 = false;
         bool led2 = false;
         int pwm = 0;
@@ -104,7 +103,7 @@ namespace WindowsFormsApplication1
             var info = JsonConvert.DeserializeObject<MqttMsg>(str);
             
             if (info.Object != null)
-            {
+            {           
                 SetText(info.Object);             
             }
         }
@@ -136,34 +135,47 @@ namespace WindowsFormsApplication1
         public MainForm()
         {
             InitializeComponent();
+            string clientId;
 
-            // create client instance 
             ledControlClient = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
-
-            // register to message received 
             ledControlClient.MqttMsgPublishReceived += ledControlClient_MqttMsgPublishReceived;
+            ledControlClient.ConnectionClosed += ledControlClient_ConnectionClosed;
 
-            string clientId = Guid.NewGuid().ToString();
-            ledControlClient.Connect(clientId);
 
-            
-            ledControlClient.Subscribe(new string[] { "application/2/node/60c5a8fffe000001/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });     
+            try
+            {
+                clientId = Guid.NewGuid().ToString();
+                ledControlClient.Connect(clientId);
+                ledControlClient.Subscribe(new string[] { "application/2/node/60c5a8fffe000001/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });     
+            }
+            catch
+            {
 
+            }
            
             
-            temometrClient = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
-            temometrClient.MqttMsgPublishReceived += temometrClient_MqttMsgPublishReceived;
+            termometrClient = new MqttClient(IPAddress.Parse(MQTT_BROKER_ADDRESS));
+            termometrClient.MqttMsgPublishReceived += temometrClient_MqttMsgPublishReceived;
+            termometrClient.ConnectionClosed += termometrClient_ConnectionClosed;
+                     
+
+
+            try
+            {
+                clientId = Guid.NewGuid().ToString();
+                termometrClient.Connect(clientId);
+                termometrClient.Subscribe(new string[] { "application/1/node/3531323975377613/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+            }
+            catch
+            {
+                termometrClientReconnectTimer.Start();
+            }
+
             
-            clientId = Guid.NewGuid().ToString();
-            temometrClient.Connect(clientId);
 
+            pwmDelayTimer.Stop();
+        }           
 
-            temometrClient.Subscribe(new string[] { "application/1/node/3531323975377613/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-
-            
-
-            timer1.Stop();
-        }
 
         private void sendLeds()
         {
@@ -241,11 +253,13 @@ namespace WindowsFormsApplication1
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            ledControlClient.ConnectionClosed -= ledControlClient_ConnectionClosed;
             if (ledControlClient.IsConnected)
                 ledControlClient.Disconnect();
 
-            if (temometrClient.IsConnected)
-                temometrClient.Disconnect();
+           termometrClient.ConnectionClosed -= termometrClient_ConnectionClosed;
+            if (termometrClient.IsConnected)
+                termometrClient.Disconnect();
         }
 
         private void pwm1TrackBar_ValueChanged(object sender, EventArgs e)
@@ -253,16 +267,80 @@ namespace WindowsFormsApplication1
             pwm1Label.Text = (pwm1TrackBar.Value / 255.0 * 100.0).ToString("N2") + " %";
             pwm = pwm1TrackBar.Value;
 
-            if (timer1.Enabled)
-                timer1.Stop();
+            if (pwmDelayTimer.Enabled)
+                pwmDelayTimer.Stop();
 
-            timer1.Start();
+            pwmDelayTimer.Start();
         }
 
-        private void timer1_Tick(object sender, EventArgs e)
+        private void pwmDelayTimer_Tick(object sender, EventArgs e)
         {
-            timer1.Stop();
+            pwmDelayTimer.Stop();
             sendPwm();
+        }
+
+
+        delegate void StartTimerCallback();
+
+
+        void startTermometrClientReconnectTimer()
+        {
+            termometrClientReconnectTimer.Start();
+        }
+
+        void termometrClient_ConnectionClosed(object sender, EventArgs e)
+        {
+            StartTimerCallback d = new StartTimerCallback(startTermometrClientReconnectTimer);
+            this.Invoke(d, new object[] { });
+        }
+
+        void startLedControllClientReconnectTimer()
+        {
+            ledControlClientReconnectTimer.Start();
+        }
+
+
+        void ledControlClient_ConnectionClosed(object sender, EventArgs e)
+        {
+            StartTimerCallback d = new StartTimerCallback(startLedControllClientReconnectTimer);
+            this.Invoke(d, new object[] { });
+        }
+
+
+        private void termometrClientReconnectTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                string clientId = termometrClient.ClientId == null ? Guid.NewGuid().ToString() : termometrClient.ClientId;
+                termometrClient.Connect(clientId);
+                if (termometrClient.IsConnected)
+                {
+                    termometrClient.Subscribe(new string[] { "application/1/node/3531323975377613/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+                    termometrClientReconnectTimer.Stop();
+                }
+            }
+            catch
+            {
+
+            }
+        }
+
+        private void ledControlClientReconnectTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                string clientId = ledControlClient.ClientId == null ? Guid.NewGuid().ToString() : ledControlClient.ClientId;
+                ledControlClient.Connect(clientId);
+                if (ledControlClient.IsConnected)
+                {
+                    ledControlClient.Subscribe(new string[] { "application/2/node/60c5a8fffe000001/rx" }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });     
+                    ledControlClientReconnectTimer.Stop();
+                }
+            }
+            catch
+            {
+
+            }
         }
     }
 }
