@@ -1,3 +1,5 @@
 /ControlApplication/ControlApplication/bin/
 /ControlApplication/ControlApplication/obj/
 *.suo
+/TemperatureSensorService/TemperatureSensorService/bin/
+/TemperatureSensorService/TemperatureSensorService/obj
