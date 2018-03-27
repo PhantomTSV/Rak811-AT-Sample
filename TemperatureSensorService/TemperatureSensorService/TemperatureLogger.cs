@@ -71,7 +71,15 @@ namespace TemperatureSensorService
             {
                 string Connect = "Database=term;Data Source=127.0.0.1;User Id=root;Password=";
                 MySqlConnection myConnection = new MySqlConnection(Connect);
-                myConnection.Open();
+
+                try
+                {
+                    myConnection.Open();
+                }
+                catch
+                {
+                    return;
+                }
                 
                 string query = "INSERT INTO temp_values (dev_eui, temperature, humidity, log_date) VALUES (@dev_eui, @temperature, @humidity, CURRENT_TIMESTAMP)";
                 MySqlCommand command = new MySqlCommand(query, myConnection);

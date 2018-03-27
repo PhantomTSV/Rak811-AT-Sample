@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace TemperatureSensorService
 {
-    public partial class Service1 : ServiceBase
+    public partial class TemperatureSensorService : ServiceBase
     {
-        public Service1()
+        public TemperatureSensorService()
         {
             InitializeComponent();
         }

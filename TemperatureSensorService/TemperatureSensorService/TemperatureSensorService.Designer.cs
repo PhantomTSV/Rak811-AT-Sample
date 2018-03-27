@@ -1,6 +1,6 @@
 ﻿namespace TemperatureSensorService
 {
-    partial class Service1
+    partial class TemperatureSensorService
     {
         /// <summary> 
         /// Required designer variable.
