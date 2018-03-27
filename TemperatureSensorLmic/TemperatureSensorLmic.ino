@@ -45,7 +45,7 @@ static const PROGMEM u1_t NWKSKEY[16] = { 0xE9, 0x0F, 0xD7, 0x52, 0x19, 0xA2, 0x
 static const u1_t PROGMEM APPSKEY[16] = { 0x6E, 0xA2, 0xCB, 0xA7, 0x97, 0x47, 0xDD, 0x8C, 0x69, 0x2C, 0xDF, 0xAB, 0x52, 0xDD, 0xDA, 0x8F };
 
 // LoRaWAN end-device address (DevAddr)
-static const u4_t DEVADDR = 0x07AAAB31 ; // <-- Change this address for every node!
+static const u4_t DEVADDR = 0x07AAAB32 ; // <-- Change this address for every node!
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -146,7 +146,7 @@ String to_hex(int a) {
   if (str.length() < 2)
     str = "0" + str;
 
-    return str;
+  return str;
 }
 
 void do_send(osjob_t* j) {
@@ -160,6 +160,7 @@ void do_send(osjob_t* j) {
 
     if (isnan(t) || isnan(h)) {
       Serial.println("Failed to read from DHT");
+      os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(TX_INTERVAL), do_send);
     } else {
       String tmp = "0x";
       Serial.print("Humidity: ");
@@ -177,16 +178,18 @@ void do_send(osjob_t* j) {
 
       Serial.print(t);
       Serial.println(" *C");
+
+      mydata[0] = uint8_t(t);
+      mydata[1] = uint8_t(h);
+
+
+      // Prepare upstream data transmission at the next possible time.
+      LMIC_setTxData2(1, mydata, /*sizeof(mydata) - 1*/2, 1);
+      Serial.println(F("Packet queued"));
     }
 
 
-    mydata[0] = uint8_t(t);
-    mydata[1] = uint8_t(h);
-    
 
-    // Prepare upstream data transmission at the next possible time.
-    LMIC_setTxData2(1, mydata, /*sizeof(mydata) - 1*/2, 1);
-    Serial.println(F("Packet queued"));
   }
   // Next TX is scheduled after TX_COMPLETE event.
 }
@@ -195,7 +198,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("Starting"));
 
- // dht.begin();
+  // dht.begin();
 
 #ifdef VCC_ENABLE
   // For Pinoccio Scout boards
